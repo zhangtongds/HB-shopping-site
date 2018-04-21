@@ -1,4 +1,3 @@
-
 {% extends 'base.html' %}
 
 {% block body %}
@@ -13,17 +12,18 @@
         </tr>
         </thead>
         <tbody>
+        {% for melon in cart %}
         <tr>
-            <td>{{ session['cart'][melon_id].common_name }}</td>
-            <td>{{ session['cart'][melon_id].quantity }}</td>
-            <td>{{ session['cart'][melon_id].price }}</td>
-            <td>$15.00</td>
+            <td>{{ melon.common_name }}</td>
+            <td>{{ melon.quantity }}</td>
+            <td>${{ "%0.2f" | format(melon.price) }}</td>
+            <td>${{ "%0.2f" | format(melon.total_cost) }}</td>
         </tr>
-        
+        {% endfor %}
         </tbody>
     </table>
 
-    <h3>Total: $27.00</h3>
+    <h3>Total: ${{ "%0.2f" | format(order_total) }}</h3>
 
     <a href="/checkout" class="btn btn-large btn-primary">Check Out</a>
 

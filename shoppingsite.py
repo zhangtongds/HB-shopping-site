@@ -6,10 +6,11 @@ put melons in a shopping cart.
 Authors: Joel Burton, Christian Fernandez, Meggie Mahnken, Katie Byers.
 """
 
-from flask import Flask, render_template, redirect, flash, session
+from flask import Flask, render_template, redirect, flash, session, request
 import jinja2
 
 import melons
+import customers 
 
 app = Flask(__name__)
 
@@ -55,7 +56,39 @@ def show_melon(melon_id):
 @app.route("/cart")
 def show_shopping_cart():
     """Display content of shopping cart."""
-    # cart = []
+    # Keep track of the total cost of the order
+    order_total = 0
+
+    # Create a list to hold Melon objects corresponding to the melon_id's in
+    # the cart
+    cart_melons = []
+
+    # Get the cart dictionary out of the session (or an empty one if none
+    # exists yet)
+    cart = session.get("cart", {})
+
+    # Loop over the cart dictionary
+    for melon_id, quantity in cart.iteritems():
+        # Retrieve the Melon object corresponding to this id
+        melon = melons.get_by_id(melon_id)
+
+        # Calculate the total cost for this type of melon and add it to the
+        # overall total for the order
+        total_cost = quantity * melon.price
+        order_total += total_cost
+
+        # Add the quantity and total cost as attributes on the Melon object
+        melon.quantity = quantity
+        melon.total_cost = total_cost
+
+        # Add the Melon object to our list
+        cart_melons.append(melon)
+
+    # Pass the list of Melon objects and the order total to our cart template
+
+    return render_template("cart.html",
+                           cart=cart_melons,
+                           order_total=order_total)
 
     # TODO: Display the contents of the shopping cart.
 
@@ -78,7 +111,7 @@ def show_shopping_cart():
     # Make sure your function can also handle the case wherein no cart has
     # been added to the session
 
-    return render_template("cart.html")
+    
 
 
 @app.route("/add_to_cart/<melon_id>")
@@ -88,12 +121,17 @@ def add_to_cart(melon_id):
     When a melon is added to the cart, redirect browser to the shopping cart
     page and display a confirmation message: 'Melon successfully added to
     cart'."""
-    session['cart'] = melons.get_by_id(melon_id)
-    if session['cart'][melon_id]:
-        session['cart'][melon_id].quantity += 1
-    else:
-        session['cart'][melon_id].quantity = 1
+
+    # if session['cart'][melon_id]:
+    #     session['cart'][melon_id].quantity += 1
+    # else:
+    #     session['cart'][melon_id].quantity = 1
     
+    if 'cart' in session:
+        cart = session['cart']
+    else:
+        cart = session['cart'] = {}
+    cart[melon_id] = cart.get(melon_id, 0) + 1
 
 
 
@@ -108,7 +146,7 @@ def add_to_cart(melon_id):
     # - flash a success message
     # - redirect the user to the cart page
 
-    return render_template("cart.html")
+    return redirect("/cart")
 
 
 @app.route("/login", methods=["GET"])
@@ -140,7 +178,33 @@ def process_login():
     # - if they don't, flash a failure message and redirect back to "/login"
     # - do the same if a Customer with that email doesn't exist
 
-    return "Oops! This needs to be implemented"
+    email = request.form['email']
+    password = request.form['password']
+    customer = customers.get_by_email(email)
+    if customer:
+        if customer.password == password and customer.email == email:
+            if 'logged_in_customer_email' in session:
+                session['logged_in_customer_email'].append(email)
+            else:
+                session['logged_in_customer_email'] = [email]
+            flash("You have successfully logged in.")
+            return redirect('/melons')
+        else:
+            flash("Incorrect password. Please try again.")
+            return redirect('/login')
+    else:
+        flash("No customer with that email found. Please try again.")
+        return redirect('/login')
+
+
+@app.route("/logout")
+def process_logout():
+    # flash("You've successfully logged out")
+    del session['logged_in_customer_email']
+    return redirect('/')
+
+
+    
 
 
 @app.route("/checkout")
@@ -155,4 +219,5 @@ def checkout():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host= "0.0.0.0")
+
